@@ -213,14 +213,77 @@ def conferir_evidencias(texto: str) -> Resultado:
     )
 
 
+def conferir_notebooks_do_colab() -> Resultado:
+    """Os 12 notebooks por exercício existem, estão executados e sem erro.
+
+    O professor abre um link por exercício. Notebook sem saída salva obriga a
+    rodar para ver qualquer coisa; notebook com erro é nota perdida no exercício.
+    """
+    pasta = RAIZ / "colab"
+    arquivos = sorted(pasta.glob("ex*.ipynb"))
+    sem_saida: list[str] = []
+    com_erro: list[str] = []
+    for arquivo in arquivos:
+        nb = json.loads(arquivo.read_text(encoding="utf-8"))
+        codigo = [c for c in nb["cells"] if c["cell_type"] == "code"]
+        if not any(c.get("outputs") for c in codigo):
+            sem_saida.append(arquivo.name)
+        if any(
+            s.get("output_type") == "error"
+            for c in codigo
+            for s in c.get("outputs", [])
+        ):
+            com_erro.append(arquivo.name)
+    ok = len(arquivos) == 12 and not sem_saida and not com_erro
+    detalhe = f"{len(arquivos)}/12 notebooks executados, sem erro"
+    if sem_saida:
+        detalhe = f"sem saída: {sem_saida}"
+    elif com_erro:
+        detalhe = f"com erro: {com_erro}"
+    return Resultado("notebooks do Colab", ok, detalhe)
+
+
+def conferir_links_no_pdf() -> Resultado:
+    """O PDF precisa dos 12 links do Colab **clicáveis**, não só escritos.
+
+    Texto de link que não é anotação de link no PDF obriga o professor a copiar e
+    colar doze URLs na mão.
+    """
+    from pypdf import PdfReader
+
+    encontrados: set[int] = set()
+    for pagina in PdfReader(SAIDA_PDF).pages:
+        for anotacao in pagina.get("/Annots") or []:
+            try:
+                uri = str((anotacao.get_object().get("/A") or {}).get("/URI") or "")
+            except Exception:  # anotação malformada não deve derrubar a conferência
+                continue
+            achado = re.search(r"/colab/ex(\d{2})_", uri)
+            if achado and "colab.research.google.com" in uri:
+                encontrados.add(int(achado.group(1)))
+    faltando = sorted(set(range(1, 13)) - encontrados)
+    return Resultado(
+        "links do Colab no PDF",
+        not faltando,
+        f"{len(encontrados)}/12 links clicáveis"
+        + (f", faltando {faltando}" if faltando else ""),
+    )
+
+
 def main() -> int:
     print("Conferência da entrega — TP DR1_AT\n")
 
-    resultados = [conferir_testes(), conferir_notebook(), conferir_nomes()]
+    resultados = [
+        conferir_testes(),
+        conferir_notebook(),
+        conferir_notebooks_do_colab(),
+        conferir_nomes(),
+    ]
     if resultados[-1].ok:
         texto = _texto_do_pdf()
         resultados += [
             conferir_exercicios_no_pdf(texto),
+            conferir_links_no_pdf(),
             conferir_marcadores(),
             conferir_nada_cortado(texto),
             conferir_figuras(),
@@ -237,9 +300,8 @@ def main() -> int:
         return 1
     print(f"As {len(resultados)} conferências passaram. A entrega está íntegra.")
     print("\nFalta só o que o script não faz por você:")
-    print("  1. gravar o vídeo de 5 a 8 min seguindo ROTEIRO_VIDEO.md")
-    print("  2. subir no Drive da Infnet com 'qualquer pessoa com o link'")
-    print("  3. enviar PDF + link a partir de 22/09/2026 07h00 (2 tentativas)")
+    print(f"  1. enviar {NOME_BASE}.pdf — a página 2 tem os 12 links do Colab")
+    print("  2. prazo 26/09/2026 23h59, 2 tentativas")
     return 0
 
 
