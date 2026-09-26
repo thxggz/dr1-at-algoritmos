@@ -3,3 +3,17 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 *.html
+_fontes_colab/
+
+# versão anterior do projeto e documentos de trabalho: ficam só na máquina local
+src/
+tests/
+notebook/
+figures/
+build_pdf.py
+gerar_colab.py
+verificar_entrega.py
+pytest.ini
+CLAUDE.md
+RUBRICA.md
+ROTEIRO_VIDEO.md
