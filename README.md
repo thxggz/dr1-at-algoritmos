@@ -35,4 +35,4 @@ Os notebooks já estão salvos com as saídas, então dá para ler os resultados
 ## Arquivos
 
 - `colab/` — os doze notebooks, um por exercício
-- `Henrique_Goldstein_DR1_AT.pdf` — os doze notebooks impressos, com os links na primeira página
+- `Henrique_Goldstein_DR1_AT.pdf` — os links dos doze notebooks no Colab
